@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: bake-room-postgres
+    environment:
+      POSTGRES_USER: bakeadmin
+      POSTGRES_PASSWORD: bakepass2024
+      POSTGRES_DB: bakeroom
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bakeadmin -d bakeroom"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bake-room-net
+
+  bake-room-api:
+    build:
+      context: ./bake-room-api
+      dockerfile: Dockerfile
+    container_name: bake-room-api
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: bakeadmin
+      DB_PASSWORD: bakepass2024
+      DB_NAME: bakeroom
+      PORT: 3001
+      NODE_ENV: development
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bake-room-net
+    command: sh -c "npm run seed && npm run start:dev"
+
+  oven-slot-web:
+    build:
+      context: ./oven-slot-web
+      dockerfile: Dockerfile
+    container_name: oven-slot-web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - bake-room-api
+    networks:
+      - bake-room-net
+
+volumes:
+  postgres-data:
+
+networks:
+  bake-room-net:
+    driver: bridge
