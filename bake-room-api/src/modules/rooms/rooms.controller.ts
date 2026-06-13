@@ -52,6 +52,7 @@ export class PublicRoomController {
     return this.roomRepo.find({
       where: { isActive: true },
       order: { name: 'ASC' },
+      relations: ['equipment', 'equipment.trays'],
     });
   }
 

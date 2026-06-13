@@ -44,9 +44,12 @@ export default function NewReservationPage({ user }: { user: any }) {
       const data = await roomApi.list();
       setRooms(data);
       if (data.length > 0) {
-        setSelectedRoomId(data[0].id);
-        if (data[0].equipment && data[0].equipment.length > 0) {
-          setSelectedEquipmentId(data[0].equipment[0].id);
+        const firstRoom = data[0];
+        const firstEquipment = firstRoom.equipment?.[0];
+        setSelectedRoomId(firstRoom.id);
+        if (firstEquipment) {
+          setSelectedEquipmentId(firstEquipment.id);
+          setTimeout(() => loadSlotsFor(firstRoom.id, firstEquipment.id, date), 0);
         }
       }
     } finally {
@@ -54,15 +57,11 @@ export default function NewReservationPage({ user }: { user: any }) {
     }
   };
 
-  const loadSlots = async () => {
+  const loadSlotsFor = async (roomId: string, equipmentId: string, d: string) => {
     setSlotsLoading(true);
     try {
-      const data = await reservationApi.getSlots(
-        selectedRoomId,
-        selectedEquipmentId,
-        date,
-      );
-      setSlotData(data);
+      const slotData = await reservationApi.getSlots(roomId, equipmentId, d);
+      setSlotData(slotData);
       setSelectedStart('');
       setSelectedEnd('');
     } catch (err: any) {
@@ -71,6 +70,8 @@ export default function NewReservationPage({ user }: { user: any }) {
       setSlotsLoading(false);
     }
   };
+
+  const loadSlots = () => loadSlotsFor(selectedRoomId, selectedEquipmentId, date);
 
   const handleSlotClick = (startTime: string, endTime: string, available: boolean) => {
     if (!available) return;
@@ -170,8 +171,14 @@ export default function NewReservationPage({ user }: { user: any }) {
               <div
                 key={room.id}
                 onClick={() => {
+                  const equipmentId = room.equipment?.[0]?.id || '';
                   setSelectedRoomId(room.id);
-                  setSelectedEquipmentId(room.equipment?.[0]?.id || '');
+                  setSelectedEquipmentId(equipmentId);
+                  if (equipmentId) {
+                    loadSlotsFor(room.id, equipmentId, date);
+                  } else {
+                    setSlotData(null);
+                  }
                 }}
                 className={`room-select-card ${selectedRoomId === room.id ? 'selected' : ''}`}
               >
@@ -200,7 +207,10 @@ export default function NewReservationPage({ user }: { user: any }) {
                   <span
                     key={eq.id}
                     className={`equipment-chip ${selectedEquipmentId === eq.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedEquipmentId(eq.id)}
+                    onClick={() => {
+                      setSelectedEquipmentId(eq.id);
+                      loadSlotsFor(selectedRoomId, eq.id, date);
+                    }}
                   >
                     {eq.name}
                   </span>
@@ -214,7 +224,13 @@ export default function NewReservationPage({ user }: { user: any }) {
               type="date"
               value={date}
               min={todayStr()}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                const d = e.target.value;
+                setDate(d);
+                if (selectedRoomId && selectedEquipmentId) {
+                  loadSlotsFor(selectedRoomId, selectedEquipmentId, d);
+                }
+              }}
             />
           </div>
 

@@ -23,6 +23,8 @@ export default function App({ Component, pageProps }: AppProps) {
     authStore.setUser(loggedInUser);
     setUser(loggedInUser);
     setIsLoggedIn(true);
+    const target = loggedInUser?.role === 'admin' ? '/admin' : '/';
+    router.push(target);
   };
 
   const handleLogout = () => {
